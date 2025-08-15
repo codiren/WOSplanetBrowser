@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Planet Browser — Single-file HTML</title>
+<style>
+  :root{
+    --bg:#0b0b0b;--panel:#151515;--ink:#e8e8e8;--muted:#adadad;--brand:#ffb400;
+    --accent:#2a2a2a;--hover:#1e1e1e;--outline:#303030;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0;background:linear-gradient(180deg,#0a0a0a 0%, #0f0f10 100%);
+    color:var(--ink);font:14px/1.35 system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
+  }
+  .app{
+    display:grid;grid-template-columns: 320px 1fr 360px;gap:12px;
+    height:100%;padding:12px;
+  }
+  .panel{
+    background:var(--panel);border:1px solid var(--outline);border-radius:14px;
+    padding:12px;box-shadow:0 10px 30px rgba(0,0,0,.35);
+    overflow:hidden;min-height:0;
+  }
+  h2{margin:4px 0 10px 0;font-size:16px;font-weight:700}
+  label{display:block;margin:10px 0 6px 0;color:var(--muted);font-size:12px;letter-spacing:.2px}
+  input[type="text"], input[type="number"], select{
+    width:100%;padding:8px 10px;border-radius:10px;border:1px solid var(--outline);
+    background:#0f0f0f;color:var(--ink);outline:none;
+  }
+  input[type="checkbox"]{transform:translateY(1px)}
+  .row{display:flex;gap:8px}
+  .range{display:grid;grid-template-columns: 72px 1fr 72px;gap:8px;align-items:center}
+  .range input[type="range"]{width:100%}
+  .filters{overflow:auto;height:93%;padding-right:4px}
+  .resource-grid{display:grid;grid-template-columns: 1fr 1fr;gap:4px 8px}
+  .btn{
+    display:inline-flex;align-items:center;justify-content:center;gap:8px;
+    padding:8px 10px;border-radius:12px;background:var(--accent);color:var(--ink);
+    border:1px solid var(--outline);cursor:pointer;user-select:none;
+  }
+  .btn:hover{background:var(--hover)}
+  .btn.brand{background:var(--brand);color:#1a1200;border-color:#cc9000}
+  .muted{color:var(--muted)}
+  .hint{font-size:12px;color:var(--muted);margin-top:8px}
+  .centerWrap{display:flex;flex-direction:column;height:100%}
+  #grid{flex:1;background:#0b0b0b;border:1px solid var(--outline);border-radius:12px}
+  .info{padding:8px 4px 0 4px;color:var(--muted);font-size:12px}
+  .detailsText{
+    width:100%;height:calc(100% - 44px);resize:none;background:#0f0f0f;color:var(--ink);
+    border:1px solid var(--outline);border-radius:12px;padding:10px;font:13px/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, "Roboto Mono", monospace;
+  }
+  .detailBtns{display:flex;gap:8px;margin-top:8px}
+  .pill{display:inline-flex;align-items:center;gap:6px;padding:.35rem .6rem;border-radius:999px;background:#101010;border:1px solid var(--outline);font-size:12px;color:var(--muted)}
+  .flex{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .colorInputs{display:grid;grid-template-columns: 1fr auto;gap:6px}
+  .kbd{font:11px/1.2 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;background:#111;border:1px solid #2a2a2a;border-bottom-color:#1a1a1a;border-radius:6px;padding:2px 6px;color:#ddd}
+</style>
+</head>
+<body>
+  <div class="app">
+    <!-- LEFT: Filters -->
+    <section class="panel">
+      <h2>Filters</h2>
+      <div class="filters" id="filters">
+        <div class="flex" style="margin-bottom:6px">
+          <label class="pill"><input id="includeStars" type="checkbox"> Include Stars</label>
+          <span class="pill" id="countChip">0 found</span>
+        </div>
+
+        <label>Name search (substring):</label>
+        <input id="nameSearch" type="text" placeholder="e.g. Omega">
+
+        <label>SubType (choose):</label>
+        <select id="subtypeSelect"></select>
+
+        <label>Material (choose):</label>
+        <select id="materialSelect"></select>
+
+        <label>Resources (match ALL selected):</label>
+        <div class="resource-grid" id="resourcesGrid"></div>
+
+        <label>Tidal locked:</label>
+        <select id="tidalSelect">
+          <option>Any</option><option>Yes</option><option>No</option>
+        </select>
+
+        <label>Has atmosphere:</label>
+        <select id="airSelect">
+          <option>Any</option><option>Yes</option><option>No</option>
+        </select>
+
+        <label>WaterLevel key present:</label>
+        <select id="waterSelect">
+          <option>Any</option><option>Yes</option><option>No</option>
+        </select>
+
+        <label>Has rings:</label>
+        <select id="ringsSelect">
+          <option>Any</option><option>Yes</option><option>No</option>
+        </select>
+
+        <label>StartingTime</label>
+        <div class="range">
+          <input id="timeMin" type="number"><input id="timeRangeMin" type="range"><input id="timeMax" type="number"><input id="timeRangeMax" type="range" style="display:none">
+        </div>
+
+        <label>Temperature</label>
+        <div class="range">
+          <input id="tempMin" type="number"><input id="tempRangeMin" type="range"><input id="tempMax" type="number"><input id="tempRangeMax" type="range" style="display:none">
+        </div>
+
+        <label>Gravity</label>
+        <div class="range">
+          <input id="gravMin" type="number"><input id="gravRangeMin" type="range"><input id="gravMax" type="number"><input id="gravRangeMax" type="range" style="display:none">
+        </div>
+
+        <label>Max results to show:</label>
+        <div class="row">
+          <input id="maxResults" type="number" min="0" step="1" value="500" style="width:90px">
+          <input id="maxResultsRange" type="range" min="0" max="500" step="1" value="500" style="flex:1">
+        </div>
+
+        <label>Target Primary RGB</label>
+        <div class="colorInputs">
+          <input id="tPrimary" type="text" placeholder="r,g,b">
+          <input id="pickPrimary" type="color" value="#222222" title="Pick Primary">
+        </div>
+
+        <label>Target Secondary RGB</label>
+        <div class="colorInputs">
+          <input id="tSecondary" type="text" placeholder="r,g,b">
+          <input id="pickSecondary" type="color" value="#222222" title="Pick Secondary">
+        </div>
+
+        <label class="pill" style="margin-top:10px">
+          <input id="sortByScore" type="checkbox" checked> Sort by color match score
+        </label>
+
+        <div class="row" style="margin-top:10px">
+          <button class="btn" id="clearBtn">Clear Filters</button>
+        </div>
+
+        <p class="hint">I found bobo and pirategesture planets using this color algorithm, so it really works!</p>
+      </div>
+    </section>
+
+    <!-- CENTER: Canvas -->
+    <section class="panel centerWrap">
+      <canvas id="grid"></canvas>
+      <div class="info">Hover a tile to preview. Click to lock selection. Press <span class="kbd">C</span> to copy coords.</div>
+    </section>
+
+    <!-- RIGHT: Details -->
+    <section class="panel">
+      <h2>Details</h2>
+      <textarea id="details" class="detailsText" readonly></textarea>
+      <div class="detailBtns">
+        <button class="btn" id="copyBtn">Copy Coords</button>
+        <button class="btn brand" id="unlockBtn">Unlock</button>
+      </div>
+    </section>
+  </div>
+<script src="planets_data.js"></script>
+<script>
+
+/* -------------------------
+   Utilities
+------------------------- */
+const clamp=(v,min,max)=>Math.max(min,Math.min(max,v));
+const rgb2hex=([r=34,g=34,b=34] = [])=>"#"+[r,g,b].map(v=>clamp(v|0,0,255).toString(16).padStart(2,"0")).join("");
+const parseRGBText = (s)=>{
+  if(!s) return null;
+  const parts = s.split(/[,;\s]+/).filter(Boolean);
+  if(parts.length!==3) return null;
+  const nums = parts.map(p=>clamp(Number(p),0,255));
+  if(nums.some(n=>Number.isNaN(n))) return null;
+  return nums;
+};
+const colorDistance=(a,b)=>{
+  if(!a||!b) return 255*3;
+  return Math.abs(a[0]-b[0])+Math.abs(a[1]-b[1])+Math.abs(a[2]-b[2]);
+};
+const computeMatchScore=(p, tp, ts)=>{
+  const primary=p.PrimaryColor, secondary=p.SecondaryColor;
+  if(!tp && !ts) return 0;
+  if(!tp) return colorDistance(secondary, ts);
+  if(!ts) return colorDistance(primary, tp);
+  return colorDistance(primary, tp)+colorDistance(secondary, ts);
+};
+const resourceKeys=(p)=>{
+  const r=p.Resources;
+  if(!r) return new Set();
+  return new Set(Object.keys(r));
+};
+
+/* -------------------------
+   Extract facets / ranges
+------------------------- */
+const allEntries = Object.entries(planets_data).map(([coords,p])=>({...p, coords}));
+const subtypes=[...new Set(allEntries.map(p=>p.SubType).filter(v=>v!==undefined))].sort();
+const materials=[...new Set(allEntries.map(p=>p.Material).filter(v=>v!==undefined))].sort();
+const resources=[...new Set(allEntries.flatMap(p=>Object.keys(p.Resources||{})))].sort();
+const temps = allEntries.map(p=>p.Temperature).filter(v=>v!==undefined).map(v=>Math.round(Number(v)));
+const gravs = allEntries.map(p=>p.Gravity).filter(v=>v!==undefined).map(v=>Math.round(Number(v)));
+const times = allEntries.map(p=>p.StartingTime).filter(v=>v!==undefined).map(v=>Math.round(Number(v)));
+
+const TEMP_MIN=temps.length?Math.min(...temps):-200, TEMP_MAX=temps.length?Math.max(...temps):200;
+const GRAV_MIN=gravs.length?Math.min(...gravs):0, GRAV_MAX=gravs.length?Math.max(...gravs):400;
+const TIME_MIN=times.length?Math.min(...times):0, TIME_MAX=times.length?Math.max(...times):24;
+
+/* -------------------------
+   State
+------------------------- */
+const state = {
+  filters:{
+    include_stars:false, resources:new Set(), tidal_locked:null, has_air:null,
+    subtypes:null, time_min:TIME_MIN, time_max:TIME_MAX, temp_min:TEMP_MIN, temp_max:TEMP_MAX,
+    grav_min:GRAV_MIN, grav_max:GRAV_MAX, require_water_level:null, material:null,
+    has_rings:null, target_primary:null, target_secondary:null, name_search:"", max_results:null
+  },
+  filtered:[],
+  hover_coords:null,
+  lock_coords:null,
+  layout:{tile:28, margin:4, cols:1}
+};
+
+/* -------------------------
+   DOM refs
+------------------------- */
+const $ = id => document.getElementById(id);
+const grid = $("grid");
+const details = $("details");
+const copyBtn = $("copyBtn");
+const unlockBtn = $("unlockBtn");
+const countChip = $("countChip");
+
+/* -------------------------
+   Build filter UI
+------------------------- */
+(function buildFilters(){
+  const subtypeSelect=$("subtypeSelect");
+  subtypeSelect.innerHTML = `<option>Any</option>${subtypes.map(s=>`<option>${s}</option>`).join("")}`;
+
+  const materialSelect=$("materialSelect");
+  materialSelect.innerHTML = `<option>Any</option>${materials.map(s=>`<option>${s}</option>`).join("")}`;
+
+  const resGrid=$("resourcesGrid");
+  resGrid.innerHTML = resources.map(r=>{
+    const id="res_"+r.replace(/\W+/g,"_");
+    return `<label class="pill"><input type="checkbox" id="${id}" data-res="${r}"> ${r}</label>`;
+  }).join("");
+
+  // range inputs init
+  const pairRange = (minEl, maxEl, rMinEl, rMaxEl, min, max) => {
+    minEl.value=min; maxEl.value=max;
+    rMinEl.min=min; rMinEl.max=max; rMinEl.value=min;
+    rMaxEl.min=min; rMaxEl.max=max; rMaxEl.value=max; // not shown but kept in sync
+    const sync = ()=>{
+      let vmin=Number(minEl.value), vmax=Number(maxEl.value);
+      if(vmin>vmax){ [vmin,vmax]=[vmax,vmin]; minEl.value=vmin; maxEl.value=vmax; }
+      rMinEl.value=vmin; rMaxEl.value=vmax;
+      onFiltersChanged();
+    };
+    minEl.addEventListener("input", sync);
+    maxEl.addEventListener("input", sync);
+    rMinEl.addEventListener("input", ()=>{ minEl.value = rMinEl.value; onFiltersChanged(); });
+    rMaxEl.addEventListener("input", ()=>{ maxEl.value = rMaxEl.value; onFiltersChanged(); });
+  };
+
+  pairRange($("timeMin"), $("timeMax"), $("timeRangeMin"), $("timeRangeMax"), TIME_MIN, TIME_MAX);
+  pairRange($("tempMin"), $("tempMax"), $("tempRangeMin"), $("tempRangeMax"), TEMP_MIN, TEMP_MAX);
+  pairRange($("gravMin"), $("gravMax"), $("gravRangeMin"), $("gravRangeMax"), GRAV_MIN, GRAV_MAX);
+
+  // max results
+  const maxN=$("maxResults"), maxR=$("maxResultsRange");
+  const syncMax = (fromSlider=false)=>{
+    if(fromSlider){ maxN.value = maxR.value; }
+    else{ maxR.value = clamp(Number(maxN.value)||0, 0, 500); }
+    onFiltersChanged();
+  };
+  maxN.addEventListener("input", ()=>syncMax(false));
+  maxR.addEventListener("input", ()=>syncMax(true));
+
+  // simple inputs
+  ["includeStars","nameSearch","subtypeSelect","materialSelect",
+   "tidalSelect","airSelect","waterSelect","ringsSelect","sortByScore"]
+   .forEach(id=>$(id).addEventListener("input", onFiltersChanged));
+
+  // resources
+  resGrid.querySelectorAll("input[type=checkbox]").forEach(cb=>{
+    cb.addEventListener("input", onFiltersChanged);
+  });
+
+  // color pickers
+  $("pickPrimary").addEventListener("input", e=>{
+    const c=e.target.value; // #rrggbb
+    const r=parseInt(c.slice(1,3),16), g=parseInt(c.slice(3,5),16), b=parseInt(c.slice(5,7),16);
+    $("tPrimary").value = `${r},${g},${b}`;
+    onFiltersChanged();
+  });
+  $("pickSecondary").addEventListener("input", e=>{
+    const c=e.target.value;
+    const r=parseInt(c.slice(1,3),16), g=parseInt(c.slice(3,5),16), b=parseInt(c.slice(5,7),16);
+    $("tSecondary").value = `${r},${g},${b}`;
+    onFiltersChanged();
+  });
+  $("tPrimary").addEventListener("input", onFiltersChanged);
+  $("tSecondary").addEventListener("input", onFiltersChanged);
+
+  // clear
+  $("clearBtn").addEventListener("click", ()=>{
+    $("includeStars").checked=false;
+    $("nameSearch").value="";
+    $("subtypeSelect").selectedIndex=0;
+    $("materialSelect").selectedIndex=0;
+    resGrid.querySelectorAll("input[type=checkbox]").forEach(cb=>cb.checked=false);
+    $("tidalSelect").value="Any";
+    $("airSelect").value="Any";
+    $("waterSelect").value="Any";
+    $("ringsSelect").value="Any";
+    $("timeMin").value=TIME_MIN; $("timeMax").value=TIME_MAX; $("timeRangeMin").value=TIME_MIN;
+    $("tempMin").value=TEMP_MIN; $("tempMax").value=TEMP_MAX; $("tempRangeMin").value=TEMP_MIN;
+    $("gravMin").value=GRAV_MIN; $("gravMax").value=GRAV_MAX; $("gravRangeMin").value=GRAV_MIN;
+    $("tPrimary").value=""; $("tSecondary").value=""; $("pickPrimary").value="#222222"; $("pickSecondary").value="#222222";
+    $("sortByScore").checked=true;
+    $("maxResults").value=500; $("maxResultsRange").value=500;
+    state.lock_coords=null; state.hover_coords=null;
+    onFiltersChanged();
+  });
+})();
+
+/* -------------------------
+   Filtering logic
+------------------------- */
+function matchesFilters(p, f){
+  // Type
+  const t = p.Type || "Planet";
+  if(t==="Star" && !f.include_stars) return {ok:false, score:0};
+
+  // Name search
+  const ns=(f.name_search||"").toLowerCase();
+  if(ns && !(String(p.Name||"").toLowerCase().includes(ns))) return {ok:false, score:0};
+
+  // SubType
+  if(f.subtypes && String(p.SubType||"")!==f.subtypes) return {ok:false, score:0};
+
+  // Material
+  if(f.material && String(p.Material||"")!==f.material) return {ok:false, score:0};
+
+  // Resources (AND semantics: must include all selected)
+  if(f.resources && f.resources.size){
+    const keys=resourceKeys(p);
+    for(const r of f.resources){ if(!keys.has(r)) return {ok:false, score:0}; }
+  }
+
+  // Tidal locked (DayCycleIncrement == 0)
+  if(f.tidal_locked===true && (p.DayCycleIncrement!==0)) return {ok:false, score:0};
+  if(f.tidal_locked===false && (p.DayCycleIncrement===0)) return {ok:false, score:0};
+
+  // Atmosphere
+  const hasAir = !!p.Atmosphere;
+  if(f.has_air===true && !hasAir) return {ok:false, score:0};
+  if(f.has_air===false && hasAir) return {ok:false, score:0};
+
+  // StartingTime
+  if(f.time_min!=null || f.time_max!=null){
+    if(p.StartingTime==null) return {ok:false, score:0};
+    const st = Math.round(Number(p.StartingTime));
+    if(f.time_min!=null && st < f.time_min) return {ok:false, score:0};
+    if(f.time_max!=null && st > f.time_max) return {ok:false, score:0};
+  }
+
+  // Temperature
+  if(f.temp_min!=null || f.temp_max!=null){
+    if(p.Temperature==null) return {ok:false, score:0};
+    const tv = Math.round(Number(p.Temperature));
+    if(f.temp_min!=null && tv < f.temp_min) return {ok:false, score:0};
+    if(f.temp_max!=null && tv > f.temp_max) return {ok:false, score:0};
+  }
+
+  // Gravity
+  if(f.grav_min!=null || f.grav_max!=null){
+    if(p.Gravity==null) return {ok:false, score:0};
+    const gv = Math.round(Number(p.Gravity));
+    if(f.grav_min!=null && gv < f.grav_min) return {ok:false, score:0};
+    if(f.grav_max!=null && gv > f.grav_max) return {ok:false, score:0};
+  }
+
+  // WaterLevel presence
+  if(f.require_water_level===true && !("WaterLevel" in p)) return {ok:false, score:0};
+  if(f.require_water_level===false && ("WaterLevel" in p)) return {ok:false, score:0};
+
+  // Rings presence
+  const hasRings = !!p.Rings;
+  if(f.has_rings===true && !hasRings) return {ok:false, score:0};
+  if(f.has_rings===false && hasRings) return {ok:false, score:0};
+
+  // color score
+  const score = computeMatchScore(p, f.target_primary, f.target_secondary);
+  return {ok:true, score};
+}
+
+function recomputeFiltered(){
+  const f = state.filters;
+  let results = [];
+  for(const p of allEntries){
+    const {ok, score} = matchesFilters(p, f);
+    if(ok) results.push({...p, _match_score:score});
+  }
+  // sort
+  if($("sortByScore").checked){
+    results.sort((a,b)=> a._match_score - b._match_score || String(a.Name||"").localeCompare(String(b.Name||"")));
+  }else{
+    const sumCol = e => (e.PrimaryColor||[0,0,0]).reduce((s,v)=>s+v,0) + (e.SecondaryColor||[0,0,0]).reduce((s,v)=>s+v,0);
+    results.sort((a,b)=> sumCol(a)-sumCol(b));
+  }
+  const max = state.filters.max_results;
+  if(max && max>0) results = results.slice(0, max);
+  state.filtered = results;
+  const label = (state.filters.max_results && results.length>=state.filters.max_results) ? `>${state.filters.max_results} planets found` : `${results.length} planets found`;
+  countChip.textContent = label;
+  document.title = `Planet Browser — ${label}`;
+}
+
+/* -------------------------
+   Canvas layout & drawing
+------------------------- */
+const ctx = grid.getContext("2d");
+let tileBoxes = []; // [{coords, bbox:[x1,y1,x2,y2]}]
+function recalcLayout(){
+  const n = state.filtered.length;
+  const w = grid.width, h=grid.height, margin=4;
+  const maxTile = Math.min(120, Math.max(12, Math.floor(Math.min(w,h)/4)));
+  let layout=null;
+  for(let ts=maxTile; ts>7; ts--){
+    const cols = Math.max(1, Math.floor(w/(ts+margin)));
+    const rows = Math.ceil(n/cols);
+    const needH = rows*(ts+margin);
+    if(needH<=h){ layout={tile:ts, margin, cols}; break; }
+  }
+  if(!layout){
+    const cols=Math.max(1, Math.floor(w/(12+margin)));
+    layout={tile:Math.max(8, Math.floor(w/Math.max(1,cols))-margin), margin, cols};
+  }
+  state.layout=layout;
+}
+
+function draw(){
+  const items = state.filtered;
+  const {tile, margin, cols} = state.layout;
+  ctx.clearRect(0,0,grid.width,grid.height);
+  ctx.imageSmoothingEnabled=false;
+  tileBoxes = [];
+  if(items.length===0){
+    ctx.fillStyle="#dddddd";
+    ctx.font="14px system-ui"; ctx.textAlign="left"; ctx.textBaseline="top";
+    ctx.fillText("No planets match filters.", 10, 10);
+    updateDetails();
+    return;
+  }
+  const half = Math.max(1, Math.floor(tile/2));
+  const scoreFont = Math.max(8, Math.floor(tile*0.28));
+  const nameFont = Math.max(7, Math.floor(tile*0.22));
+
+  items.forEach((p, i)=>{
+    const x = (i % cols) * (tile + margin);
+    const y = Math.floor(i / cols) * (tile + margin);
+
+    // left half primary
+    ctx.fillStyle = rgb2hex(p.PrimaryColor || [0,0,0]);
+    ctx.fillRect(x, y, half, tile);
+
+    // right half secondary
+    ctx.fillStyle = rgb2hex(p.SecondaryColor || [0,0,0]);
+    ctx.fillRect(x+half, y, tile-half, tile);
+
+    // score box
+    const score = Math.round(p._match_score||0);
+    const scoreTxt = String(score);
+    ctx.font = `${scoreFont}px ui-monospace,monospace`;
+    const boxW = ctx.measureText(scoreTxt).width + 8;
+    ctx.fillStyle = score===0 ? "#000000" : "#333333";
+    ctx.fillRect(x+2, y+2, boxW, scoreFont+6);
+    ctx.fillStyle = score>0 ? "#ffffff" : "#ffcc00";
+    ctx.textAlign="left"; ctx.textBaseline="top";
+    ctx.fillText(scoreTxt, x+6, y+4);
+
+    // name
+    const nm = String(p.Name||"").slice(0,12);
+    ctx.font = `${nameFont}px system-ui, sans-serif`;
+    ctx.fillStyle = "#dddddd";
+    ctx.fillText(nm, x+3, y + tile - (nameFont+2));
+
+    // highlight borders
+    if(state.hover_coords===p.coords){
+      ctx.strokeStyle="#ffffff"; ctx.lineWidth=2; ctx.strokeRect(x+1, y+1, tile-2, tile-2);
+    } else if(state.lock_coords===p.coords){
+      ctx.strokeStyle="#ffb400"; ctx.lineWidth=3; ctx.strokeRect(x+1.5, y+1.5, tile-3, tile-3);
+    }
+
+    // expand bbox for hover tolerance
+    const expand=Math.max(1, Math.floor(margin/2));
+    tileBoxes.push({coords:p.coords, bbox:[x-expand, y-expand, x+tile+expand, y+tile+expand]});
+  });
+
+  updateDetails();
+}
+
+/* -------------------------
+   Details panel
+------------------------- */
+function updateDetails(){
+  let chosen=null;
+  if(state.lock_coords){
+    chosen = state.filtered.find(p=>p.coords===state.lock_coords) || null;
+  }else if(state.hover_coords){
+    chosen = state.filtered.find(p=>p.coords===state.hover_coords) || null;
+  }
+  if(!chosen){
+    details.value = "No selection. Hover a tile to preview.\nClick to lock a planet.\n";
+    return;
+  }
+  const lines=[];
+  const pushKV=(k,v)=>lines.push(`${k}: ${v===undefined ? "N/A" : (typeof v==="object"? JSON.stringify(v) : v)}`);
+  pushKV("Name", chosen.Name||"N/A");
+  pushKV("Coords", chosen.coords);
+  pushKV("Type/SubType", `${chosen.Type||"N/A"} / ${chosen.SubType||"N/A"}`);
+  pushKV("Material", chosen.Material);
+  pushKV("Temperature", chosen.Temperature);
+  pushKV("Gravity", chosen.Gravity);
+  pushKV("StartingTime", chosen.StartingTime);
+  pushKV("DayCycleIncrement", chosen.DayCycleIncrement);
+  pushKV("WaterLevel", chosen.WaterLevel);
+  pushKV("Atmosphere", chosen.Atmosphere);
+  pushKV("Rings", chosen.Rings);
+  pushKV("Resources", chosen.Resources);
+  pushKV("PrimaryColor", chosen.PrimaryColor);
+  pushKV("SecondaryColor", chosen.SecondaryColor);
+  pushKV("Match score", chosen._match_score);
+  // Dump other keys if any:
+  Object.keys(chosen).forEach(k=>{
+    if(["Name","coords","Type","SubType","Material","Temperature","Gravity","StartingTime","DayCycleIncrement","WaterLevel","Atmosphere","Rings","Resources","PrimaryColor","SecondaryColor","_match_score"].includes(k)) return;
+    pushKV(k, chosen[k]);
+  });
+  details.value = lines.join("\n");
+}
+
+/* -------------------------
+   Gather filters + trigger
+------------------------- */
+function onFiltersChanged(){
+  const f = state.filters;
+  f.include_stars = $("includeStars").checked;
+  f.name_search = $("nameSearch").value.trim();
+  const sub = $("subtypeSelect").value; f.subtypes = (sub==="Any"||!sub)? null : sub;
+  const mat = $("materialSelect").value; f.material = (mat==="Any"||!mat)? null : mat;
+
+  // resources
+  const selected = new Set();
+  document.querySelectorAll("#resourcesGrid input[type=checkbox]").forEach(cb=>{
+    if(cb.checked) selected.add(cb.dataset.res);
+  });
+  f.resources = selected;
+
+  // tri-states
+  const tri = (v)=> v==="Any" ? null : (v==="Yes");
+  f.tidal_locked = tri($("tidalSelect").value);
+  f.has_air = tri($("airSelect").value);
+  f.require_water_level = tri($("waterSelect").value);
+  f.has_rings = tri($("ringsSelect").value);
+
+  // ranges
+  f.time_min = Number($("timeMin").value);
+  f.time_max = Number($("timeMax").value);
+  if(f.time_min>f.time_max){ [f.time_min,f.time_max]=[f.time_max,f.time_min]; $("timeMin").value=f.time_min; $("timeMax").value=f.time_max; }
+
+  f.temp_min = Number($("tempMin").value);
+  f.temp_max = Number($("tempMax").value);
+  if(f.temp_min>f.temp_max){ [f.temp_min,f.temp_max]=[f.temp_max,f.temp_min]; $("tempMin").value=f.temp_min; $("tempMax").value=f.temp_max; }
+
+  f.grav_min = Number($("gravMin").value);
+  f.grav_max = Number($("gravMax").value);
+  if(f.grav_min>f.grav_max){ [f.grav_min,f.grav_max]=[f.grav_max,f.grav_min]; $("gravMin").value=f.grav_min; $("gravMax").value=f.grav_max; }
+
+  // max results
+  const mr = Number($("maxResults").value); f.max_results = (mr>0)? mr : null;
+
+  // colors
+  f.target_primary = parseRGBText($("tPrimary").value.trim());
+  f.target_secondary = parseRGBText($("tSecondary").value.trim());
+
+  // recompute & draw
+  recomputeFiltered();
+  resizeCanvas(); // recalc layout based on size
+  draw();
+}
+
+/* -------------------------
+   Interaction handlers
+------------------------- */
+function canvasCoordsHit(x,y){
+  for(const {coords,bbox:[x1,y1,x2,y2]} of tileBoxes){
+    if(x>=x1 && x<=x2 && y>=y1 && y<=y2) return coords;
+  }
+  return null;
+}
+
+grid.addEventListener("mousemove", e=>{
+  const rect = grid.getBoundingClientRect();
+  const x = Math.floor((e.clientX-rect.left) * grid.width/rect.width);
+  const y = Math.floor((e.clientY-rect.top) * grid.height/rect.height);
+  const hit = canvasCoordsHit(x,y);
+  if(hit !== state.hover_coords){
+    state.hover_coords = hit;
+    updateDetails();
+    draw();
+  }
+});
+grid.addEventListener("mouseleave", ()=>{
+  state.hover_coords=null; updateDetails(); draw();
+});
+grid.addEventListener("click", e=>{
+  const rect = grid.getBoundingClientRect();
+  const x = Math.floor((e.clientX-rect.left) * grid.width/rect.width);
+  const y = Math.floor((e.clientY-rect.top) * grid.height/rect.height);
+  const hit = canvasCoordsHit(x,y);
+  if(hit){
+    state.lock_coords = (state.lock_coords===hit)? null : hit;
+    updateDetails(); draw();
+  }
+});
+
+// Copy & unlock
+async function copyCoords(){
+  const coords = state.lock_coords || state.hover_coords;
+  if(!coords){ alert("No planet selected."); return; }
+  try{
+    await navigator.clipboard.writeText(String(coords));
+    alert("Coords copied to clipboard.");
+  }catch{
+    // fallback
+    const ta=document.createElement("textarea"); ta.value=String(coords); document.body.appendChild(ta);
+    ta.select(); document.execCommand("copy"); document.body.removeChild(ta);
+    alert("Coords copied to clipboard.");
+  }
+}
+copyBtn.addEventListener("click", copyCoords);
+unlockBtn.addEventListener("click", ()=>{ state.lock_coords=null; updateDetails(); draw(); });
+window.addEventListener("keydown", (e)=>{ if((e.key==='c'||e.key==='C') && !e.metaKey && !e.ctrlKey){ copyCoords(); }});
+
+/* -------------------------
+   Canvas sizing
+------------------------- */
+function resizeCanvas(){
+  // fit container
+  const dpr = Math.min(window.devicePixelRatio||1, 2);
+  const rect = grid.getBoundingClientRect();
+  const w = Math.max(100, Math.floor(rect.width*dpr));
+  const h = Math.max(100, Math.floor(rect.height*dpr));
+  if(grid.width!==w || grid.height!==h){
+    grid.width=w; grid.height=h;
+  }
+  recalcLayout();
+}
+window.addEventListener("resize", ()=>{ resizeCanvas(); draw(); });
+
+/* -------------------------
+   Boot
+------------------------- */
+onFiltersChanged(); // sets everything and renders
+</script>
+</body>
+</html>
