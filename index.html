@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Planet Browser — Single-file HTML</title>
+<title>Planet Browser</title>
 <style>
   :root{
     --bg:#0b0b0b;--panel:#151515;--ink:#e8e8e8;--muted:#adadad;--brand:#ffb400;
@@ -32,8 +32,6 @@
   }
   input[type="checkbox"]{transform:translateY(1px)}
   .row{display:flex;gap:8px}
-  .range{display:grid;grid-template-columns: 72px 1fr 72px;gap:8px;align-items:center}
-  .range input[type="range"]{width:100%}
   .filters{overflow:auto;height:93%;padding-right:4px}
   .resource-grid{display:grid;grid-template-columns: 1fr 1fr;gap:4px 8px}
   .btn{
@@ -53,89 +51,234 @@
     border:1px solid var(--outline);border-radius:12px;padding:10px;font:13px/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, "Roboto Mono", monospace;
   }
   .detailBtns{display:flex;gap:8px;margin-top:8px}
-  .pill{display:inline-flex;align-items:center;gap:6px;padding:.35rem .6rem;border-radius:999px;background:#101010;border:1px solid var(--outline);font-size:12px;color:var(--muted)}
+  .pill{margin:0px;display:inline-flex;align-items:center;gap:6px;padding:.35rem .6rem;border-radius:999px;background:#101010;border:1px solid var(--outline);font-size:12px;color:var(--muted)}
   .flex{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
   .colorInputs{display:grid;grid-template-columns: 1fr auto;gap:6px}
   .kbd{font:11px/1.2 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;background:#111;border:1px solid #2a2a2a;border-bottom-color:#1a1a1a;border-radius:6px;padding:2px 6px;color:#ddd}
+  
+  /* Custom slider styles */
+  .slider-container {
+    position: relative;
+    height: 50px;
+    margin: 0px 4%;
+    width: 94%;
+  }
+  
+  .track {
+    position: absolute;
+    top: 50%;
+    left: 0;
+    right: 0;
+    height: 6px;
+    background-color: #2a2a2a;
+    border-radius: 3px;
+    transform: translateY(-50%);
+  }
+  
+  .range {
+    position: absolute;
+    top: 50%;
+    height: 6px;
+    background: linear-gradient(to right, #4a4a4a, #8a8a8a);
+    border-radius: 3px;
+    transform: translateY(-50%);
+  }
+  
+  .handle {
+    position: absolute;
+    top: 50%;
+    width: 18px;
+    height: 18px;
+    background-color: #0f0f0f;
+    border: 2px solid #8a8a8a;
+    border-radius: 50%;
+    cursor: pointer;
+    transform: translate(-50%, -50%);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+    z-index: 2;
+  }
+  
+  .values {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 5px;
+    font-size: 12px;
+    color: var(--muted);
+  }
+  
+  /* Hide original range inputs */
+  .range input[type="range"] {
+    display: none;
+  }
+  
+  .range input[type="number"] {
+    display: none;
+  }
+  
+  /* Enhanced slider with input fields */
+  .slider-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  
+  .slider-input {
+    width: 60px;
+    padding: 6px 8px;
+    text-align: center;
+    font-size: 13px;
+  }
+  
+  .slider-container-enhanced {
+    flex: 1;
+    position: relative;
+    height: 50px;
+  }
+  
+  .track-enhanced {
+    position: absolute;
+    top: 50%;
+    left: 0;
+    right: 0;
+    height: 6px;
+    background-color: #2a2a2a;
+    border-radius: 3px;
+    transform: translateY(-50%);
+  }
+  
+  .range-enhanced {
+    position: absolute;
+    top: 50%;
+    height: 6px;
+    background: linear-gradient(to right, #4a4a4a, #8a8a8a);
+    border-radius: 3px;
+    transform: translateY(-50%);
+  }
+  
+  .handle-enhanced {
+    position: absolute;
+    top: 50%;
+    width: 18px;
+    height: 18px;
+    background-color: #0f0f0f;
+    border: 2px solid #8a8a8a;
+    border-radius: 50%;
+    cursor: pointer;
+    transform: translate(-50%, -50%);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+    z-index: 2;
+  }
+  
+  .values-enhanced {
+    display: none;
+  }
 </style>
 </head>
 <body>
   <div class="app">
     <!-- LEFT: Filters -->
     <section class="panel">
-      <h2>Filters</h2>
+      <h2 id="countChip">Filters</h2>
       <div class="filters" id="filters">
         <div class="flex" style="margin-bottom:6px">
-          <label class="pill"><input id="includeStars" type="checkbox"> Include Stars</label>
-          <span class="pill" id="countChip">0 found</span>
+          <label class="pill" style="display:none"><input id="includeStars" type="checkbox"> Include Stars</label>
         </div>
-
-        <label>Name search (substring):</label>
-        <input id="nameSearch" type="text" placeholder="e.g. Omega">
-
-        <label>SubType (choose):</label>
-        <select id="subtypeSelect"></select>
-
-        <label>Material (choose):</label>
-        <select id="materialSelect"></select>
-
-        <label>Resources (match ALL selected):</label>
-        <div class="resource-grid" id="resourcesGrid"></div>
-
-        <label>Tidal locked:</label>
-        <select id="tidalSelect">
-          <option>Any</option><option>Yes</option><option>No</option>
-        </select>
-
-        <label>Has atmosphere:</label>
-        <select id="airSelect">
-          <option>Any</option><option>Yes</option><option>No</option>
-        </select>
-
-        <label>WaterLevel key present:</label>
-        <select id="waterSelect">
-          <option>Any</option><option>Yes</option><option>No</option>
-        </select>
-
-        <label>Has rings:</label>
-        <select id="ringsSelect">
-          <option>Any</option><option>Yes</option><option>No</option>
-        </select>
-
-        <label>StartingTime</label>
-        <div class="range">
-          <input id="timeMin" type="number"><input id="timeRangeMin" type="range"><input id="timeMax" type="number"><input id="timeRangeMax" type="range" style="display:none">
-        </div>
-
-        <label>Temperature</label>
-        <div class="range">
-          <input id="tempMin" type="number"><input id="tempRangeMin" type="range"><input id="tempMax" type="number"><input id="tempRangeMax" type="range" style="display:none">
-        </div>
-
-        <label>Gravity</label>
-        <div class="range">
-          <input id="gravMin" type="number"><input id="gravRangeMin" type="range"><input id="gravMax" type="number"><input id="gravRangeMax" type="range" style="display:none">
-        </div>
-
-        <label>Max results to show(set 0 to see all):</label>
+		<label>Max results to show(set 0 to see all):</label>
         <div class="row">
           <input id="maxResults" type="number" min="0" step="1" value="500" style="width:90px">
           <input id="maxResultsRange" type="range" min="0" max="500" step="1" value="500" style="flex:1">
         </div>
 
-        <label>Target Primary RGB</label>
+        <label>SubType:</label>
+        <select id="subtypeSelect"></select>
+		
+		<label>Has atmosphere:</label>
+        <select id="airSelect">
+          <option>Any</option><option>Yes</option><option>No</option>
+        </select>
+		
+		<label>Water present:</label>
+        <select id="waterSelect">
+          <option>Any</option><option>Yes</option><option>No</option>
+        </select>
+		
+        <label>Tidal locked:</label>
+        <select id="tidalSelect">
+          <option>Any</option><option>Yes</option><option>No</option>
+        </select>
+		
+        <label>Has rings:</label>
+        <select id="ringsSelect">
+          <option>Any</option><option>Yes</option><option>No</option>
+        </select>
+		
+		<label>Ground material:</label>
+        <select id="materialSelect"></select>
+		
+		<label>Resources:</label>
+        <div class="resource-grid" id="resourcesGrid"></div>
+        <label>StartingTime</label>
+        <div class="slider-wrapper">
+          <input type="number" class="slider-input" id="timeMinInput" min="0" max="24" value="0" style="width: 65px;">
+          <div class="slider-container-enhanced" id="timeSliderContainer">
+            <div class="track-enhanced"></div>
+            <div class="range-enhanced" id="timeRange"></div>
+            <div class="handle-enhanced" id="timeHandle1" style="left: 0%;"></div>
+            <div class="handle-enhanced" id="timeHandle2" style="left: 100%;"></div>
+          </div>
+          <input type="number" class="slider-input" id="timeMaxInput" min="0" max="24" value="24" style="width: 65px;">
+        </div>
+        <div class="values-enhanced">
+          <span>Min: <span id="timeMinValue">0</span></span>
+          <span>Max: <span id="timeMaxValue">24</span></span>
+        </div>
+
+        <label>Temperature</label>
+        <div class="slider-wrapper">
+          <input type="number" class="slider-input" id="tempMinInput" min="-200" max="200" value="-200" style="width: 65px;">
+          <div class="slider-container-enhanced" id="tempSliderContainer">
+            <div class="track-enhanced"></div>
+            <div class="range-enhanced" id="tempRange"></div>
+            <div class="handle-enhanced" id="tempHandle1" style="left: 0%;"></div>
+            <div class="handle-enhanced" id="tempHandle2" style="left: 100%;"></div>
+          </div>
+          <input type="number" class="slider-input" id="tempMaxInput" min="-200" max="200" value="200" style="width: 65px;">
+        </div>
+        <div class="values-enhanced">
+          <span>Min: <span id="tempMinValue">-200</span></span>
+          <span>Max: <span id="tempMaxValue">200</span></span>
+        </div>
+
+        <label>Gravity</label>
+        <div class="slider-wrapper">
+          <input type="number" class="slider-input" id="gravMinInput" min="0" max="400" value="0" style="width: 65px;">
+          <div class="slider-container-enhanced" id="gravSliderContainer">
+            <div class="track-enhanced"></div>
+            <div class="range-enhanced" id="gravRange"></div>
+            <div class="handle-enhanced" id="gravHandle1" style="left: 0%;"></div>
+            <div class="handle-enhanced" id="gravHandle2" style="left: 100%;"></div>
+          </div>
+          <input type="number" class="slider-input" id="gravMaxInput" min="0" max="400" value="400" style="width: 65px;">
+        </div>
+        <div class="values-enhanced">
+          <span>Min: <span id="gravMinValue">0</span></span>
+          <span>Max: <span id="gravMaxValue">400</span></span>
+        </div>
+		<label>Name search (substring):</label>
+        <input id="nameSearch" type="text" placeholder="e.g. Omega">
+        <label>Color Primary RGB</label>
         <div class="colorInputs">
           <input id="tPrimary" type="text" placeholder="r,g,b">
           <input id="pickPrimary" type="color" value="#222222" title="Pick Primary">
         </div>
 
-        <label>Target Secondary RGB</label>
+        <label>Color Secondary RGB</label>
         <div class="colorInputs">
           <input id="tSecondary" type="text" placeholder="r,g,b">
           <input id="pickSecondary" type="color" value="#222222" title="Pick Secondary">
         </div>
 
-        <label class="pill" style="margin-top:10px">
+        <label class="pill" style="margin-top:10px;display:none">
           <input id="sortByScore" type="checkbox" checked> Sort by color match score
         </label>
 
@@ -165,7 +308,6 @@
   </div>
 <script src="planets_data.js"></script>
 <script>
-
 /* -------------------------
    Utilities
 ------------------------- */
@@ -199,6 +341,7 @@ const resourceKeys=(p)=>{
 /* -------------------------
    Extract facets / ranges
 ------------------------- */
+
 const allEntries = Object.entries(planets_data).map(([coords,p])=>({...p, coords}));
 const subtypes=[...new Set(allEntries.map(p=>p.SubType).filter(v=>v!==undefined))].sort();
 const materials=[...new Set(allEntries.map(p=>p.Material).filter(v=>v!==undefined))].sort();
@@ -253,26 +396,10 @@ const countChip = $("countChip");
     return `<label class="pill"><input type="checkbox" id="${id}" data-res="${r}"> ${r}</label>`;
   }).join("");
 
-  // range inputs init
-  const pairRange = (minEl, maxEl, rMinEl, rMaxEl, min, max) => {
-    minEl.value=min; maxEl.value=max;
-    rMinEl.min=min; rMinEl.max=max; rMinEl.value=min;
-    rMaxEl.min=min; rMaxEl.max=max; rMaxEl.value=max; // not shown but kept in sync
-    const sync = ()=>{
-      let vmin=Number(minEl.value), vmax=Number(maxEl.value);
-      if(vmin>vmax){ [vmin,vmax]=[vmax,vmin]; minEl.value=vmin; maxEl.value=vmax; }
-      rMinEl.value=vmin; rMaxEl.value=vmax;
-      onFiltersChanged();
-    };
-    minEl.addEventListener("input", sync);
-    maxEl.addEventListener("input", sync);
-    rMinEl.addEventListener("input", ()=>{ minEl.value = rMinEl.value; onFiltersChanged(); });
-    rMaxEl.addEventListener("input", ()=>{ maxEl.value = rMaxEl.value; onFiltersChanged(); });
-  };
-
-  pairRange($("timeMin"), $("timeMax"), $("timeRangeMin"), $("timeRangeMax"), TIME_MIN, TIME_MAX);
-  pairRange($("tempMin"), $("tempMax"), $("tempRangeMin"), $("tempRangeMax"), TEMP_MIN, TEMP_MAX);
-  pairRange($("gravMin"), $("gravMax"), $("gravRangeMin"), $("gravRangeMax"), GRAV_MIN, GRAV_MAX);
+  // Initialize custom sliders with actual data ranges
+  initSlider('time', TIME_MIN, TIME_MAX, TIME_MIN, TIME_MAX);
+  initSlider('temp', TEMP_MIN, TEMP_MAX, TEMP_MIN, TEMP_MAX);
+  initSlider('grav', GRAV_MIN, GRAV_MAX, GRAV_MIN, GRAV_MAX);
 
   // max results
   const maxN=$("maxResults"), maxR=$("maxResultsRange");
@@ -321,9 +448,12 @@ const countChip = $("countChip");
     $("airSelect").value="Any";
     $("waterSelect").value="Any";
     $("ringsSelect").value="Any";
-    $("timeMin").value=TIME_MIN; $("timeMax").value=TIME_MAX; $("timeRangeMin").value=TIME_MIN;
-    $("tempMin").value=TEMP_MIN; $("tempMax").value=TEMP_MAX; $("tempRangeMin").value=TEMP_MIN;
-    $("gravMin").value=GRAV_MIN; $("gravMax").value=GRAV_MAX; $("gravRangeMin").value=GRAV_MIN;
+    
+    // Reset sliders to default values
+    resetSlider('time', TIME_MIN, TIME_MAX);
+    resetSlider('temp', TEMP_MIN, TEMP_MAX);
+    resetSlider('grav', GRAV_MIN, GRAV_MAX);
+    
     $("tPrimary").value=""; $("tSecondary").value=""; $("pickPrimary").value="#222222"; $("pickSecondary").value="#222222";
     $("sortByScore").checked=true;
     $("maxResults").value=500; $("maxResultsRange").value=500;
@@ -331,6 +461,185 @@ const countChip = $("countChip");
     onFiltersChanged();
   });
 })();
+
+/* -------------------------
+   Custom Slider Functions
+------------------------- */
+function initSlider(type, min, max, defaultMin, defaultMax) {
+  const handle1 = document.getElementById(`${type}Handle1`);
+  const handle2 = document.getElementById(`${type}Handle2`);
+  const range = document.getElementById(`${type}Range`);
+  const minValue = document.getElementById(`${type}MinValue`);
+  const maxValue = document.getElementById(`${type}MaxValue`);
+  const minInput = document.getElementById(`${type}MinInput`);
+  const maxInput = document.getElementById(`${type}MaxInput`);
+  
+  // Set initial positions based on actual data ranges
+  const minPercent = ((defaultMin - min) / (max - min)) * 100;
+  const maxPercent = ((defaultMax - min) / (max - min)) * 100;
+  
+  handle1.style.left = `${minPercent}%`;
+  handle2.style.left = `${maxPercent}%`;
+  
+  // Set initial input values
+  minInput.value = defaultMin;
+  maxInput.value = defaultMax;
+  
+  // Update slider display with actual values
+  updateSlider(type, minPercent, maxPercent, min, max);
+  
+  // Add event listeners
+  let isDragging = null;
+  let startX = 0;
+  let startLeft = 0;
+  
+  handle1.addEventListener('mousedown', startDrag);
+  handle2.addEventListener('mousedown', startDrag);
+  
+  // Add input event listeners
+  minInput.addEventListener('input', function() {
+    const value = clamp(parseInt(this.value) || min, min, max);
+    this.value = value;
+    const percent = ((value - min) / (max - min)) * 100;
+    handle1.style.left = `${percent}%`;
+    updateSlider(type, percent, parseFloat(handle2.style.left), min, max);
+    onFiltersChanged();
+  });
+  
+  maxInput.addEventListener('input', function() {
+    const value = clamp(parseInt(this.value) || max, min, max);
+    this.value = value;
+    const percent = ((value - min) / (max - min)) * 100;
+    handle2.style.left = `${percent}%`;
+    updateSlider(type, parseFloat(handle1.style.left), percent, min, max);
+    onFiltersChanged();
+  });
+  
+  function startDrag(e) {
+    isDragging = e.target;
+    startX = e.clientX;
+    startLeft = parseFloat(isDragging.style.left);
+    isDragging.style.zIndex = '3';
+    
+    document.addEventListener('mousemove', drag);
+    document.addEventListener('mouseup', stopDrag);
+  }
+  
+  function drag(e) {
+    if (!isDragging) return;
+    
+    const container = document.getElementById(`${type}SliderContainer`);
+    const containerRect = container.getBoundingClientRect();
+    const containerWidth = containerRect.width;
+    const deltaX = e.clientX - startX;
+    let newLeft = startLeft + (deltaX / containerWidth) * 100;
+    
+    // Constrain to container
+    newLeft = Math.max(0, Math.min(100, newLeft));
+    
+    // Constrain handles relative to each other
+    if (isDragging === handle1) {
+      const handle2Pos = parseFloat(handle2.style.left);
+      newLeft = Math.min(newLeft, handle2Pos);
+    } else {
+      const handle1Pos = parseFloat(handle1.style.left);
+      newLeft = Math.max(newLeft, handle1Pos);
+    }
+    
+    isDragging.style.left = newLeft + '%';
+    updateSlider(type, parseFloat(handle1.style.left), parseFloat(handle2.style.left), min, max);
+    
+    // Update input fields during drag
+    const minVal = min + (parseFloat(handle1.style.left) / 100) * (max - min);
+    const maxVal = min + (parseFloat(handle2.style.left) / 100) * (max - min);
+    
+    minInput.value = Math.round(minVal);
+    maxInput.value = Math.round(maxVal);
+    
+    // Update state values during drag
+    if (type === 'time') {
+      state.filters.time_min = Math.round(minVal);
+      state.filters.time_max = Math.round(maxVal);
+    } else if (type === 'temp') {
+      state.filters.temp_min = Math.round(minVal);
+      state.filters.temp_max = Math.round(maxVal);
+    } else if (type === 'grav') {
+      state.filters.grav_min = Math.round(minVal);
+      state.filters.grav_max = Math.round(maxVal);
+    }
+    
+    // Trigger filter update during drag
+    onFiltersChanged();
+  }
+  
+  function stopDrag() {
+    if (isDragging) {
+      isDragging.style.zIndex = '2';
+      isDragging = null;
+      document.removeEventListener('mousemove', drag);
+      document.removeEventListener('mouseup', stopDrag);
+    }
+  }
+}
+
+function updateSlider(type, pos1, pos2, min, max) {
+  const range = document.getElementById(`${type}Range`);
+  const minValue = document.getElementById(`${type}MinValue`);
+  const maxValue = document.getElementById(`${type}MaxValue`);
+  
+  // Update range position and width
+  range.style.left = pos1 + '%';
+  range.style.width = (pos2 - pos1) + '%';
+  
+  // Calculate actual values based on position percentages
+  const minVal = min + (pos1 / 100) * (max - min);
+  const maxVal = min + (pos2 / 100) * (max - min);
+  
+  // Format values based on type
+  let formattedMin, formattedMax;
+  if (type === 'grav') {
+    // For gravity, we want to round to integers
+    formattedMin = Math.round(minVal);
+    formattedMax = Math.round(maxVal);
+  } else {
+    // Round to integers for time and temperature
+    formattedMin = Math.round(minVal);
+    formattedMax = Math.round(maxVal);
+  }
+  
+  // Update displayed values
+  minValue.textContent = formattedMin;
+  maxValue.textContent = formattedMax;
+  
+  // Update state values
+  if (type === 'time') {
+    state.filters.time_min = formattedMin;
+    state.filters.time_max = formattedMax;
+  } else if (type === 'temp') {
+    state.filters.temp_min = formattedMin;
+    state.filters.temp_max = formattedMax;
+  } else if (type === 'grav') {
+    state.filters.grav_min = formattedMin;
+    state.filters.grav_max = formattedMax;
+  }
+}
+
+function resetSlider(type, min, max) {
+  const handle1 = document.getElementById(`${type}Handle1`);
+  const handle2 = document.getElementById(`${type}Handle2`);
+  const minInput = document.getElementById(`${type}MinInput`);
+  const maxInput = document.getElementById(`${type}MaxInput`);
+  const minPercent = ((min - min) / (max - min)) * 100;
+  const maxPercent = ((max - min) / (max - min)) * 100;
+  
+  handle1.style.left = `${minPercent}%`;
+  handle2.style.left = `${maxPercent}%`;
+  
+  minInput.value = min;
+  maxInput.value = max;
+  
+  updateSlider(type, minPercent, maxPercent, min, max);
+}
 
 /* -------------------------
    Filtering logic
@@ -422,7 +731,7 @@ function recomputeFiltered(){
   state.filtered = results;
   const label = (state.filters.max_results && results.length>=state.filters.max_results) ? `>${state.filters.max_results} planets found` : `${results.length} planets found`;
   countChip.textContent = label;
-  document.title = `Planet Browser — ${label}`;
+  document.title = `${label}`;
 }
 
 /* -------------------------
@@ -572,19 +881,6 @@ function onFiltersChanged(){
   f.require_water_level = tri($("waterSelect").value);
   f.has_rings = tri($("ringsSelect").value);
 
-  // ranges
-  f.time_min = Number($("timeMin").value);
-  f.time_max = Number($("timeMax").value);
-  if(f.time_min>f.time_max){ [f.time_min,f.time_max]=[f.time_max,f.time_min]; $("timeMin").value=f.time_min; $("timeMax").value=f.time_max; }
-
-  f.temp_min = Number($("tempMin").value);
-  f.temp_max = Number($("tempMax").value);
-  if(f.temp_min>f.temp_max){ [f.temp_min,f.temp_max]=[f.temp_max,f.temp_min]; $("tempMin").value=f.temp_min; $("tempMax").value=f.temp_max; }
-
-  f.grav_min = Number($("gravMin").value);
-  f.grav_max = Number($("gravMax").value);
-  if(f.grav_min>f.grav_max){ [f.grav_min,f.grav_max]=[f.grav_max,f.grav_min]; $("gravMin").value=f.grav_min; $("gravMax").value=f.grav_max; }
-
   // max results
   const mr = Number($("maxResults").value); f.max_results = (mr>0)? mr : null;
 
@@ -674,6 +970,3 @@ onFiltersChanged(); // sets everything and renders
 </script>
 </body>
 </html>
-
-
-
