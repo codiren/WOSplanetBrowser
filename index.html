@@ -838,6 +838,7 @@ function updateDetails(){
   pushKV("Coords", chosen.coords);
   pushKV("Type/SubType", `${chosen.Type||"N/A"} / ${chosen.SubType||"N/A"}`);
   pushKV("Material", chosen.Material);
+  pushKV("GenerationHeightScale", chosen.GenerationHeightScale);
   pushKV("Temperature", chosen.Temperature);
   pushKV("Gravity", chosen.Gravity);
   pushKV("StartingTime", chosen.StartingTime);
@@ -970,3 +971,4 @@ onFiltersChanged(); // sets everything and renders
 </script>
 </body>
 </html>
+
