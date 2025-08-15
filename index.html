@@ -731,7 +731,7 @@ function recomputeFiltered(){
   state.filtered = results;
   const label = (state.filters.max_results && results.length>=state.filters.max_results) ? `>${state.filters.max_results} planets found` : `${results.length} planets found`;
   countChip.textContent = label;
-  document.title = `${label}`;
+  document.title = `${label} - Planet Browser by luckyren`;
 }
 
 /* -------------------------
@@ -971,4 +971,5 @@ onFiltersChanged(); // sets everything and renders
 </script>
 </body>
 </html>
+
 
