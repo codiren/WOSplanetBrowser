@@ -1118,7 +1118,10 @@ async function copyCoords(){
 }
 copyBtn.addEventListener("click", copyCoords);
 unlockBtn.addEventListener("click", ()=>{ state.lock_coords=null; updateDetails(); draw(); });
-window.addEventListener("keydown", (e)=>{ if((e.key==='c'||e.key==='C') && !e.metaKey && !e.ctrlKey){ copyCoords(); }});
+window.addEventListener("keydown", (e)=>{ 
+  if(document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA') return;
+  if((e.key==='c'||e.key==='C') && !e.metaKey && !e.ctrlKey){ copyCoords(); }
+});
 
 /* -------------------------
    Canvas sizing
