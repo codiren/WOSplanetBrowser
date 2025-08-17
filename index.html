@@ -172,6 +172,51 @@
   .values-enhanced {
     display: none;
   }
+  
+  /* Logarithmic slider styles */
+  .log-slider-container {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 6px;
+  }
+  
+  .log-slider-track {
+    flex: 1;
+    height: 6px;
+    background-color: #2a2a2a;
+    border-radius: 3px;
+    position: relative;
+  }
+  
+  .log-slider-fill {
+    position: absolute;
+    height: 100%;
+    background: linear-gradient(to right, #4a4a4a, #8a8a8a);
+    border-radius: 3px;
+    left: 0;
+  }
+  
+  .log-slider-handle {
+    position: absolute;
+    width: 18px;
+    height: 18px;
+    background-color: #0f0f0f;
+    border: 2px solid #8a8a8a;
+    border-radius: 50%;
+    cursor: pointer;
+    transform: translate(-50%, -50%);
+    top: 50%;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+    z-index: 2;
+  }
+  
+  .log-slider-input {
+    width: 70px;
+    padding: 6px 8px;
+    text-align: center;
+    font-size: 13px;
+  }
 </style>
 </head>
 <body>
@@ -183,10 +228,13 @@
         <div class="flex" style="margin-bottom:6px">
           <label class="pill" style="display:none"><input id="includeStars" type="checkbox"> Include Stars</label>
         </div>
-		<label>Max results to show(set 0 to see all):</label>
-        <div class="row">
-          <input id="maxResults" type="number" min="0" step="1" value="500" style="width:90px">
-          <input id="maxResultsRange" type="range" min="0" max="500" step="1" value="500" style="flex:1">
+        <label>Max results to show:</label>
+        <div class="log-slider-container">
+          <input type="number" class="log-slider-input" id="maxResultsInput" min="1" value="500" style="width:80px">
+          <div class="log-slider-track" id="maxResultsTrack" style="max-width:63%">
+            <div class="log-slider-fill" id="maxResultsFill"></div>
+            <div class="log-slider-handle" id="maxResultsHandle"></div>
+          </div>
         </div>
 
         <label>SubType:</label>
@@ -354,6 +402,9 @@ const TEMP_MIN=temps.length?Math.min(...temps):-200, TEMP_MAX=temps.length?Math.
 const GRAV_MIN=gravs.length?Math.min(...gravs):0, GRAV_MAX=gravs.length?Math.max(...gravs):400;
 const TIME_MIN=times.length?Math.min(...times):0, TIME_MAX=times.length?Math.max(...times):24;
 
+// Calculate max results based on data size
+const MAX_RESULTS_MAX = allEntries.filter(p => (p.Type || "Planet") === "Planet").length;
+
 /* -------------------------
    State
 ------------------------- */
@@ -362,7 +413,7 @@ const state = {
     include_stars:false, resources:new Set(), tidal_locked:null, has_air:null,
     subtypes:null, time_min:TIME_MIN, time_max:TIME_MAX, temp_min:TEMP_MIN, temp_max:TEMP_MAX,
     grav_min:GRAV_MIN, grav_max:GRAV_MAX, require_water_level:null, material:null,
-    has_rings:null, target_primary:null, target_secondary:null, name_search:"", max_results:null
+    has_rings:null, target_primary:null, target_secondary:null, name_search:"", max_results:500
   },
   filtered:[],
   hover_coords:null,
@@ -401,15 +452,8 @@ const countChip = $("countChip");
   initSlider('temp', TEMP_MIN, TEMP_MAX, TEMP_MIN, TEMP_MAX);
   initSlider('grav', GRAV_MIN, GRAV_MAX, GRAV_MIN, GRAV_MAX);
 
-  // max results
-  const maxN=$("maxResults"), maxR=$("maxResultsRange");
-  const syncMax = (fromSlider=false)=>{
-    if(fromSlider){ maxN.value = maxR.value; }
-    else{ maxR.value = clamp(Number(maxN.value)||0, 0, 500); }
-    onFiltersChanged();
-  };
-  maxN.addEventListener("input", ()=>syncMax(false));
-  maxR.addEventListener("input", ()=>syncMax(true));
+  // Initialize logarithmic max results slider
+  initLogSlider('maxResults', 1, MAX_RESULTS_MAX, 500);
 
   // simple inputs
   ["includeStars","nameSearch","subtypeSelect","materialSelect",
@@ -454,9 +498,11 @@ const countChip = $("countChip");
     resetSlider('temp', TEMP_MIN, TEMP_MAX);
     resetSlider('grav', GRAV_MIN, GRAV_MAX);
     
+    // Reset max results slider
+    resetLogSlider('maxResults', 1, MAX_RESULTS_MAX, 500);
+    
     $("tPrimary").value=""; $("tSecondary").value=""; $("pickPrimary").value="#222222"; $("pickSecondary").value="#222222";
     $("sortByScore").checked=true;
-    $("maxResults").value=500; $("maxResultsRange").value=500;
     state.lock_coords=null; state.hover_coords=null;
     onFiltersChanged();
   });
@@ -642,6 +688,115 @@ function resetSlider(type, min, max) {
 }
 
 /* -------------------------
+   Logarithmic Slider Functions
+------------------------- */
+function initLogSlider(type, min, max, defaultValue) {
+  const track = document.getElementById(`${type}Track`);
+  const fill = document.getElementById(`${type}Fill`);
+  const handle = document.getElementById(`${type}Handle`);
+  const input = document.getElementById(`${type}Input`);
+  
+  // Set initial value
+  input.value = defaultValue;
+  
+  // Calculate initial position
+  const logMin = Math.log(min);
+  const logMax = Math.log(max);
+  const logValue = Math.log(defaultValue);
+  const percent = ((logValue - logMin) / (logMax - logMin)) * 100;
+  
+  // Set initial position
+  handle.style.left = `${percent}%`;
+  fill.style.width = `${percent}%`;
+  
+  // Add event listeners
+  let isDragging = false;
+  
+  handle.addEventListener('mousedown', startDrag);
+  input.addEventListener('input', function() {
+    let value = parseInt(this.value) || min;
+    value = clamp(value, min, max);
+    this.value = value;
+    updateLogSlider(type, value, min, max);
+    onFiltersChanged();
+  });
+  
+  track.addEventListener('click', function(e) {
+    const rect = track.getBoundingClientRect();
+    const percent = (e.clientX - rect.left) / rect.width;
+    const logMin = Math.log(min);
+    const logMax = Math.log(max);
+    const logValue = logMin + percent * (logMax - logMin);
+    let value = Math.round(Math.exp(logValue));
+    value = clamp(value, min, max);
+    input.value = value;
+    updateLogSlider(type, value, min, max);
+    onFiltersChanged();
+  });
+  
+  function startDrag(e) {
+    isDragging = true;
+    document.addEventListener('mousemove', drag);
+    document.addEventListener('mouseup', stopDrag);
+    e.preventDefault();
+  }
+  
+  function drag(e) {
+    if (!isDragging) return;
+    
+    const rect = track.getBoundingClientRect();
+    let percent = (e.clientX - rect.left) / rect.width;
+    percent = clamp(percent, 0, 1);
+    
+    const logMin = Math.log(min);
+    const logMax = Math.log(max);
+    const logValue = logMin + percent * (logMax - logMin);
+    let value = Math.round(Math.exp(logValue));
+    value = clamp(value, min, max);
+    
+    input.value = value;
+    updateLogSlider(type, value, min, max);
+    onFiltersChanged();
+  }
+  
+  function stopDrag() {
+    isDragging = false;
+    document.removeEventListener('mousemove', drag);
+    document.removeEventListener('mouseup', stopDrag);
+  }
+}
+
+function updateLogSlider(type, value, min, max) {
+  const handle = document.getElementById(`${type}Handle`);
+  const fill = document.getElementById(`${type}Fill`);
+  const input = document.getElementById(`${type}Input`);
+  
+  // Update input value
+  input.value = value;
+  
+  // Calculate position
+  const logMin = Math.log(min);
+  const logMax = Math.log(max);
+  const logValue = Math.log(value);
+  const percent = ((logValue - logMin) / (logMax - logMin)) * 100;
+  
+  // Update handle and fill
+  handle.style.left = `${percent}%`;
+  fill.style.width = `${percent}%`;
+  
+  // Update state
+  if (type === 'maxResults') {
+    state.filters.max_results = value;
+  }
+}
+
+function resetLogSlider(type, min, max, defaultValue) {
+  const input = document.getElementById(`${type}Input`);
+  input.value = defaultValue;
+  updateLogSlider(type, defaultValue, min, max);
+}
+
+/* -------------------------
    Filtering logic
 ------------------------- */
 function matchesFilters(p, f){
@@ -727,9 +882,10 @@ function recomputeFiltered(){
     results.sort((a,b)=> sumCol(a)-sumCol(b));
   }
   const max = state.filters.max_results;
+  const totalFound = results.length;
   if(max && max>0) results = results.slice(0, max);
   state.filtered = results;
-  const label = (state.filters.max_results && results.length>=state.filters.max_results) ? `>${state.filters.max_results} planets found` : `${results.length} planets found`;
+  const label = (max && max > 0 && totalFound > max) ? `>${max} planets found` : `${totalFound} planets found`;
   countChip.textContent = label;
   document.title = `${label} - Planet Browser by luckyren`;
 }
@@ -743,7 +899,7 @@ let tileBoxes = []; // [{coords, bbox:[x1,y1,x2,y2]}]
 function recalcLayout(){
   const n = state.filtered.length;
   const w = grid.width, h=grid.height, margin=4;
-  const maxTile = Math.min(120, Math.max(12, Math.floor(Math.min(w,h)/4)));
+  const maxTile = Math.min(120, Math.max(6, Math.floor(Math.min(w,h)/4)));
   let layout=null;
   for(let ts=maxTile; ts>7; ts--){
     const cols = Math.max(1, Math.floor(w/(ts+margin)));
@@ -752,7 +908,7 @@ function recalcLayout(){
     if(needH<=h){ layout={tile:ts, margin, cols}; break; }
   }
   if(!layout){
-    const cols=Math.max(1, Math.floor(w/(12+margin)));
+    const cols=Math.max(1, Math.floor(w/(6+margin)));
     layout={tile:Math.max(8, Math.floor(w/Math.max(1,cols))-margin), margin, cols};
   }
   state.layout=layout;
@@ -785,7 +941,7 @@ function draw(){
   }
   const half = Math.max(1, Math.floor(tile/2));
   const scoreFont = Math.max(8, Math.floor(tile*0.28));
-  const nameFont = Math.max(7, Math.floor(tile*0.22));
+  const nameFont = Math.floor(tile*0.22);
 
   items.forEach((p, i)=>{
     const x = (i % cols) * (tile + margin);
@@ -801,7 +957,7 @@ function draw(){
 
     // score box (skip if score==0)
     const score = Math.round(p._match_score||0);
-    if(score !== 0){
+    if(nameFont >= 4&&score !== 0){
       const scoreTxt = String(score);
       ctx.font = `${scoreFont}px ui-monospace,monospace`;
       const boxW = ctx.measureText(scoreTxt).width + 8;
@@ -812,9 +968,9 @@ function draw(){
       drawTextOutline(ctx, scoreTxt, x+6, y+4, `${scoreFont}px ui-monospace,monospace`, scoreColor);
     }
 
-    // name with outline (skip if empty)
+    // name with outline (skip if empty or too small)
     const nm = String(p.Name||"").slice(0,12);
-    if(nm.length > 0){
+    if(nm.length > 0 && nameFont >= 6){ // Only draw name if font size is reasonable
       drawTextOutline(ctx, nm, x+3, y + tile - (nameFont+2), `${nameFont}px system-ui,sans-serif`, "#dddddd");
     }
 
@@ -899,7 +1055,7 @@ function onFiltersChanged(){
   f.has_rings = tri($("ringsSelect").value);
 
   // max results
-  const mr = Number($("maxResults").value); f.max_results = (mr>0)? mr : null;
+  f.max_results = Number($("maxResultsInput").value) || 500;
 
   // colors
   f.target_primary = parseRGBText($("tPrimary").value.trim());
@@ -987,7 +1143,3 @@ onFiltersChanged(); // sets everything and renders
 </script>
 </body>
 </html>
-
-
-
-
