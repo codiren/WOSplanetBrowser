@@ -739,6 +739,7 @@ function recomputeFiltered(){
 ------------------------- */
 const ctx = grid.getContext("2d");
 let tileBoxes = []; // [{coords, bbox:[x1,y1,x2,y2]}]
+
 function recalcLayout(){
   const n = state.filtered.length;
   const w = grid.width, h=grid.height, margin=4;
@@ -755,6 +756,18 @@ function recalcLayout(){
     layout={tile:Math.max(8, Math.floor(w/Math.max(1,cols))-margin), margin, cols};
   }
   state.layout=layout;
+}
+
+// helper to draw text with outline
+function drawTextOutline(ctx, text, x, y, font, fillStyle, outlineColor="black") {
+  ctx.font = font;
+  ctx.fillStyle = fillStyle;
+  ctx.strokeStyle = outlineColor;
+  ctx.lineWidth = 3; // outline thickness
+  ctx.textAlign = "left";
+  ctx.textBaseline = "top";
+  ctx.strokeText(text, x, y); // outline
+  ctx.fillText(text, x, y);   // fill
 }
 
 function draw(){
@@ -786,22 +799,24 @@ function draw(){
     ctx.fillStyle = rgb2hex(p.SecondaryColor || [0,0,0]);
     ctx.fillRect(x+half, y, tile-half, tile);
 
-    // score box
+    // score box (skip if score==0)
     const score = Math.round(p._match_score||0);
-    const scoreTxt = String(score);
-    ctx.font = `${scoreFont}px ui-monospace,monospace`;
-    const boxW = ctx.measureText(scoreTxt).width + 8;
-    ctx.fillStyle = score===0 ? "#000000" : "#333333";
-    ctx.fillRect(x+2, y+2, boxW, scoreFont+6);
-    ctx.fillStyle = score>0 ? "#ffffff" : "#ffcc00";
-    ctx.textAlign="left"; ctx.textBaseline="top";
-    ctx.fillText(scoreTxt, x+6, y+4);
+    if(score !== 0){
+      const scoreTxt = String(score);
+      ctx.font = `${scoreFont}px ui-monospace,monospace`;
+      const boxW = ctx.measureText(scoreTxt).width + 8;
+      ctx.fillStyle = "#333333";
+      ctx.fillRect(x+2, y+2, boxW, scoreFont+6);
 
-    // name
+      const scoreColor = score>0 ? "#ffffff" : "#ffcc00";
+      drawTextOutline(ctx, scoreTxt, x+6, y+4, `${scoreFont}px ui-monospace,monospace`, scoreColor);
+    }
+
+    // name with outline (skip if empty)
     const nm = String(p.Name||"").slice(0,12);
-    ctx.font = `${nameFont}px system-ui, sans-serif`;
-    ctx.fillStyle = "#dddddd";
-    ctx.fillText(nm, x+3, y + tile - (nameFont+2));
+    if(nm.length > 0){
+      drawTextOutline(ctx, nm, x+3, y + tile - (nameFont+2), `${nameFont}px system-ui,sans-serif`, "#dddddd");
+    }
 
     // highlight borders
     if(state.hover_coords===p.coords){
@@ -821,6 +836,7 @@ function draw(){
 /* -------------------------
    Details panel
 ------------------------- */
+
 function updateDetails(){
   let chosen=null;
   if(state.lock_coords){
@@ -971,6 +987,7 @@ onFiltersChanged(); // sets everything and renders
 </script>
 </body>
 </html>
+
 
 
 
